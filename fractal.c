@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <math.h>
 #include "fractal.h"
 #include "errorcodes.h"
 
@@ -23,7 +24,13 @@ static struct {
 		GLint position;
 	} shader_attrib;
 
+	struct {
+		GLfloat val;
+	} shader_uniform;
+
 } gl_data;
+
+static float value = 0;
 
 int main(int argc, char **argv) {
 	initGraphics(&argc, argv, 800, 600);
@@ -36,7 +43,9 @@ void renderFunc() { // Main rendering function
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	glBindBuffer(GL_ARRAY_BUFFER, gl_data.vbo);
-	glUseProgram(gl_data.prog_object);	
+	glUseProgram(gl_data.prog_object);
+	glUniform1f(gl_data.shader_uniform.val, value);	
+
 	glVertexAttribPointer(	gl_data.shader_attrib.position,
 				2,
 				GL_FLOAT,
@@ -52,14 +61,14 @@ void renderFunc() { // Main rendering function
 	glUseProgram(0);	
 	glDisableVertexAttribArray(0);	
 	
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	
 	// Swap Back- and Frontbuffer
 	glutSwapBuffers();
 };
 
 void idleFunc() { // Idle function, called between rendering frames?
+	int runtime = glutGet(GLUT_ELAPSED_TIME);
+	value = sinf((float)runtime * 0.001f);
+	glutPostRedisplay();
 };
 
 int initGraphics(int *argc, char **argv, int gfx_w, int gfx_h) {
@@ -76,10 +85,11 @@ int initGraphics(int *argc, char **argv, int gfx_w, int gfx_h) {
 	}
 	generateQuad();
 	initShader();
-	loadShader(gl_data.frag_shader, "shader/red.txt");
+	loadShader(gl_data.frag_shader, "shader/fragtests.txt");
 	loadShader(gl_data.vert_shader, "shader/vertexshader.txt");
 	compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object);
 	gl_data.shader_attrib.position = glGetAttribLocation(gl_data.prog_object, "position");	
+	gl_data.shader_uniform.val = glGetUniformLocation(gl_data.prog_object, "val");
 	return 0;
 
 };

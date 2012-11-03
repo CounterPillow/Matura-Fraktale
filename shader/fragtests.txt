@@ -1,0 +1,10 @@
+uniform float val;
+varying vec2 txcoords;
+void main()
+{
+	gl_FragColor = vec4(
+			clamp(txcoords.x + val, 0.0, 1.0),
+			clamp(1.0 - txcoords.x + val, 0.0, 1.0),
+			clamp(1.0 - (txcoords.y + val), 0.0, 1.0),
+			1.0);
+}
