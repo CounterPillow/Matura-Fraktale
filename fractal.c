@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <math.h>
+#include <stdbool.h>
 #include "fractal.h"
 #include "errorcodes.h"
 
@@ -9,7 +10,7 @@
 #ifdef __APPLE__
 	#include <GLUT/glut.h>
 #else
-	#include <GL/glut.h>
+	#include <GL/freeglut.h>
 #endif
 
 // Stores resources for OpenGL in a global struct
@@ -30,10 +31,28 @@ static struct {
 
 } gl_data;
 
+static bool keyDown[246];
+static bool keyHit[246];
+int glut_argc = 1;
+char *glut_argv[] = {NULL, NULL};
+
 static float value = 0;
 
 int main(int argc, char **argv) {
-	initGraphics(&argc, argv, 800, 600);
+	int mgfx_w = 800;
+	int mgfx_h = 600;
+	if(argc >= 3) {
+		//printf("%s, %s, %s\n", argv[0], argv[1], argv[2]);
+		mgfx_w = atoi(argv[1]);
+		mgfx_h = atoi(argv[2]);
+	}
+	/*glut_argv[0] = malloc(strlen(argv[0]) + 1);
+	memcpy(glut_argv[0], argv[0], strlen(argv[0]) + 1);
+	printf("%s\n", glut_argv[0]);*/
+	//printf("%d\n", argc);
+	//printf("hi\n");
+	glutInit(&argc, argv);
+	initGraphics(&argc, argv, mgfx_w, mgfx_h);
 	glutMainLoop();
 	return 0;
 };
@@ -66,18 +85,51 @@ void renderFunc() { // Main rendering function
 };
 
 void idleFunc() { // Idle function, called between rendering frames?
+	if(keyDown[27] == true) {
+		glutLeaveMainLoop();
+	}
+	if(keyDown[114] == true) {
+		// Reload shaders
+	}
+	if(keyHit[102] == true) {
+		glutFullScreenToggle();
+	}
 	int runtime = glutGet(GLUT_ELAPSED_TIME);
 	value = sinf((float)runtime * 0.001f);
 	glutPostRedisplay();
+	flushKeyHits();
+};
+
+void specialKeyDownFunc( unsigned char key, int x, int y ) {
+	keyDown[key] = true;
+	printf("%d\n", key);
+};
+
+void specialKeyUpFunc( unsigned char key, int x, int y ) {
+	keyDown[key] = false;
+	keyHit[key] = true;
+};
+
+void flushKeyHits() {
+	int i;
+	for(i = 0; i <= 246; i++) {
+		keyHit[i] = false;
+	}
 };
 
 int initGraphics(int *argc, char **argv, int gfx_w, int gfx_h) {
-	glutInit(argc, argv);
+	//glutInit(argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);	// Color Buffer + Double Buffering for framebuffer
 	glutInitWindowSize(gfx_w, gfx_h);
 	glutCreateWindow("Fractals are awesome");
+	
 	glutDisplayFunc(&renderFunc);
 	glutIdleFunc(&idleFunc);
+	
+	// Input handlers
+	glutKeyboardFunc(specialKeyDownFunc);
+	glutKeyboardUpFunc(specialKeyUpFunc);
+
 	glewInit();
 	if (!GLEW_VERSION_2_0) {
 		fprintf(stderr, "OpenGL Version 2.0 is not available on your system.\n");
