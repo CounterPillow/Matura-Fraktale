@@ -1,5 +1,7 @@
 attribute vec2 position;
+
 varying vec2 txcoords;
+
 uniform float val;
 
 void main()

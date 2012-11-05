@@ -1,17 +1,13 @@
-#include <stdlib.h>
 #include <stdio.h>
-#include <sys/stat.h>
+#include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include <glew.h>
+#include <GL/glfw.h>
 #include "fractal.h"
 #include "errorcodes.h"
-
-#include <glew.h>
-#ifdef __APPLE__
-	#include <GLUT/glut.h>
-#else
-	#include <GL/freeglut.h>
-#endif
+#include "shader.h"
+#include "util.h"
 
 // Stores resources for OpenGL in a global struct
 static struct {
@@ -31,29 +27,33 @@ static struct {
 
 } gl_data;
 
-static bool keyDown[246];
-static bool keyHit[246];
-int glut_argc = 1;
-char *glut_argv[] = {NULL, NULL};
-
 static float value = 0;
 
 int main(int argc, char **argv) {
-	int mgfx_w = 800;
-	int mgfx_h = 600;
-	if(argc >= 3) {
-		//printf("%s, %s, %s\n", argv[0], argv[1], argv[2]);
-		mgfx_w = atoi(argv[1]);
-		mgfx_h = atoi(argv[2]);
+	int gfx_w = 800;
+	int gfx_h = 600;
+	argGetResolution(argc, argv, &gfx_w, &gfx_h);
+	initGraphics(gfx_w, gfx_h, argGetFullscreen(argc, argv));
+	int glErr = glGetError();
+	if(glErr == GL_INVALID_OPERATION) {
+		printf("Whoops! Encountered %d!\n", glErr);
 	}
-	/*glut_argv[0] = malloc(strlen(argv[0]) + 1);
-	memcpy(glut_argv[0], argv[0], strlen(argv[0]) + 1);
-	printf("%s\n", glut_argv[0]);*/
-	//printf("%d\n", argc);
-	//printf("hi\n");
-	glutInit(&argc, argv);
-	initGraphics(&argc, argv, mgfx_w, mgfx_h);
-	glutMainLoop();
+	return mainLoop();	// Call the main loop and return it's return code when quitting
+};
+
+int mainLoop() {
+	int isRunning = true;
+	float x = 0;
+	while(isRunning) {
+		x = x + 0.01;
+		value = sinf(x);
+		renderFunc();
+
+		if(glfwGetKey( GLFW_KEY_ESC ) || !glfwGetWindowParam( GLFW_OPENED )) {
+			isRunning = false;
+		}
+	}
+	glfwTerminate();
 	return 0;
 };
 
@@ -81,54 +81,25 @@ void renderFunc() { // Main rendering function
 	glDisableVertexAttribArray(0);	
 	
 	// Swap Back- and Frontbuffer
-	glutSwapBuffers();
+	glfwSwapBuffers();
 };
 
-void idleFunc() { // Idle function, called between rendering frames?
-	if(keyDown[27] == true) {
-		glutLeaveMainLoop();
+int initGraphics(int gfx_w, int gfx_h, int fullscreen) {
+	if(!glfwInit()) {
+		fprintf(stderr, "Unable to initialize GLFW!\n");
 	}
-	if(keyDown[114] == true) {
-		// Reload shaders
+	int mode = GLFW_WINDOW;
+	if(fullscreen) {
+		mode = GLFW_FULLSCREEN;
 	}
-	if(keyHit[102] == true) {
-		glutFullScreenToggle();
+	if(!glfwOpenWindow(
+		gfx_w, gfx_h,	// Window Resolution
+		8, 8, 8, 8,	// R,G,B,A bits (= 32bit depth in total)
+		0, 0,		// depth- and stencilbuffer. We don't need those.
+		mode )
+	  ) {
+		fprintf(stderr, "Unable to open GLFW window.\n");			
 	}
-	int runtime = glutGet(GLUT_ELAPSED_TIME);
-	value = sinf((float)runtime * 0.001f);
-	glutPostRedisplay();
-	flushKeyHits();
-};
-
-void specialKeyDownFunc( unsigned char key, int x, int y ) {
-	keyDown[key] = true;
-	printf("%d\n", key);
-};
-
-void specialKeyUpFunc( unsigned char key, int x, int y ) {
-	keyDown[key] = false;
-	keyHit[key] = true;
-};
-
-void flushKeyHits() {
-	int i;
-	for(i = 0; i <= 246; i++) {
-		keyHit[i] = false;
-	}
-};
-
-int initGraphics(int *argc, char **argv, int gfx_w, int gfx_h) {
-	//glutInit(argc, argv);
-	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);	// Color Buffer + Double Buffering for framebuffer
-	glutInitWindowSize(gfx_w, gfx_h);
-	glutCreateWindow("Fractals are awesome");
-	
-	glutDisplayFunc(&renderFunc);
-	glutIdleFunc(&idleFunc);
-	
-	// Input handlers
-	glutKeyboardFunc(specialKeyDownFunc);
-	glutKeyboardUpFunc(specialKeyUpFunc);
 
 	glewInit();
 	if (!GLEW_VERSION_2_0) {
@@ -140,7 +111,16 @@ int initGraphics(int *argc, char **argv, int gfx_w, int gfx_h) {
 	loadShader(gl_data.frag_shader, "shader/fragtests.txt");
 	loadShader(gl_data.vert_shader, "shader/vertexshader.txt");
 	compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object);
+	if(glIsProgram(gl_data.prog_object) == GL_FALSE) {
+		printf("not a program\n");
+	}
+	if(glGetError()/* == GL_INVALID_OPERATION*/) {
+		printf("derp1\n");
+	}
 	gl_data.shader_attrib.position = glGetAttribLocation(gl_data.prog_object, "position");	
+	if(glGetError() == GL_INVALID_OPERATION) {
+		printf("derp2\n");
+	}
 	gl_data.shader_uniform.val = glGetUniformLocation(gl_data.prog_object, "val");
 	return 0;
 
@@ -173,40 +153,4 @@ int initShader() {
 	return 0;
 };
 
-int loadShader( unsigned int shader, const char * path ) {
-	// First, let's get the filesize
-	struct stat s;
-	stat(path, &s);
-	int shader_length = s.st_size;
-	
-	// Open the file in read-only mode
-	FILE * shaderfile;
-	shaderfile = fopen(path, "r");
-	
-	// Allocate required mem
-	char * shadercode;
-	shadercode = malloc(shader_length + 1); // + extra byte for \0
-	shadercode[shader_length] = '\0';
 
-	// Read the data
-	fread(shadercode, sizeof(char), shader_length, shaderfile);
-	
-	// Tell OpenGL what the source is
-	glShaderSource(shader, 1, (const char **)&shadercode, &shader_length);
-	
-	// Clean up behind ourselves!
-	free(shadercode);
-	fclose(shaderfile);
-	
-	return 0;
-};
-
-// Fun fact: also links the shaders.
-int compileShader( unsigned int vs, unsigned int fs, unsigned int po ) {
-	glCompileShader(vs);
-	glCompileShader(fs);
-	glAttachShader(po, vs);
-	glAttachShader(po, fs);
-	glLinkProgram(po);
-	return 0;
-};
