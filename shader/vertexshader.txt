@@ -1,15 +1,14 @@
+#version 400 core
 #extension GL_ARB_gpu_shader_fp64 : enable
-attribute vec2 position;
+in vec2 position;
 
-varying dvec2 txcoords;
+out vec2 txcoords;
 
-uniform double zoom;
-uniform dvec2 offset;
-uniform double ratio;
+uniform float ratio;
 
 void main()
 {
 	gl_Position = vec4(position, 0.0, 1.0);
-	txcoords = dvec2(position.x, position.y) * (dvec2(0.5) * zoom) + dvec2(0.5) + offset;
-	txcoords.y *= double(ratio);
+	txcoords = position;// * vec2(0.5);
+	txcoords.y *= ratio;
 }

@@ -32,7 +32,7 @@ static struct {
 } gl_data;
 
 // Input Values
-static double zoom = 2.0;
+static double zoom = 1.0;
 static double zoomAccel = 0.0;
 static int mouseScroll;
 const double zoomFactor = 0.01;
@@ -40,9 +40,9 @@ const double zoomInertia = 0.8;
 
 static int mouseCoords[2];
 static int oldMouseCoords[2];
-static GLdouble offsetCoords[2] = {0.0, 0.0};//= {-2.0, -1.1};
+static double offsetCoords[2] = {0.0, 0.0};//= {-2.0, -1.1};
 
-static double resolutionRatio = 0;
+static float resolutionRatio = 0;
 
 static int wres_w;
 static int wres_h;
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
 	}
 
 	mouseScroll = glfwGetMouseWheel();
-	resolutionRatio = (double)wres_h / (double)wres_w;
+	resolutionRatio = (float)wres_h / (float)wres_w;
 	printf("%f\n", resolutionRatio);
 
 	return mainLoop();	// Call the main loop and return it's return code when quitting
@@ -73,6 +73,11 @@ int mainLoop() {
 		glfwGetMousePos(&mouseCoords[0], &mouseCoords[1]);
 		zoomAccel *= zoomInertia;
 		zoomAccel -= (glfwGetMouseWheel() - mouseScroll) * zoomFactor * fabs(zoom);
+		// This line may need explanation
+		// it cuts off the zoomAccel value if it's too small to make a noticeable change within one frame
+		// and thus eliminates some weird "flickering"
+		// No precise math going on here.
+		zoomAccel = fabs(zoomAccel) < (0.2 * zoomFactor * zoom) ? 0.0 : zoomAccel;
 		zoom += zoomAccel;
 		mouseScroll = glfwGetMouseWheel();
 
@@ -84,7 +89,7 @@ int mainLoop() {
 
 		// max_iterations = 30;// * (1.0 / zoom);
 		if(glfwGetKey( GLFW_KEY_KP_ADD ) || glfwGetKey( GLFW_KEY_KP_SUBTRACT )) {
-			max_iterations += 100*(glfwGetKey( GLFW_KEY_KP_ADD ) - glfwGetKey( GLFW_KEY_KP_SUBTRACT ));
+			max_iterations += 10*(glfwGetKey( GLFW_KEY_KP_ADD ) - glfwGetKey( GLFW_KEY_KP_SUBTRACT ));
 			printf("Maximum iterations: %u\n", max_iterations);
 		}
 		renderFunc();
@@ -104,7 +109,7 @@ void renderFunc() { // Main rendering function
 	glBindBuffer(GL_ARRAY_BUFFER, gl_data.vbo);
 	glUseProgram(gl_data.prog_object);
 	glUniform1d(gl_data.shader_uniform.zoom, zoom);	
-	glUniform1d(gl_data.shader_uniform.ratio, resolutionRatio);	
+	glUniform1f(gl_data.shader_uniform.ratio, resolutionRatio);	
 	glUniform2d(gl_data.shader_uniform.offset, offsetCoords[0], offsetCoords[1]);	
 	glUniform1ui(gl_data.shader_uniform.iter, max_iterations);	
 
@@ -114,14 +119,14 @@ void renderFunc() { // Main rendering function
 				GL_FALSE,			// normalized
 				sizeof(GLfloat)*2,		// stride
 				NULL);				// pointer
-
+	checkForGLError("mainloop");
 	glEnableVertexAttribArray(gl_data.shader_attrib.position);
 	
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_data.ibo);
 	glDrawRangeElements(GL_TRIANGLE_FAN, 0, 3, 4, GL_UNSIGNED_SHORT, NULL);	
 	
 	// Return to 'clean' state
-	glUseProgram(0);	
+	//glUseProgram(0);	
 	glDisableVertexAttribArray(0);	
 	// Swap Back- and Frontbuffer
 	glfwSwapBuffers();
@@ -137,8 +142,8 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen) {
 	}
 	
 	// Set some hints
-	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
+	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
+	//glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
 	glfwOpenWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );	// Only use OpenGL 3.0 and above (sorry intel.)
 	glfwOpenWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );	// Only use OpenGL 3.0 and above (sorry intel.)
 	glfwOpenWindowHint( GLFW_WINDOW_NO_RESIZE, GL_TRUE );		// Disallow window resizing (pain in the ass to handle)
@@ -170,6 +175,7 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen) {
 	initShader();
 	//loadShader(gl_data.frag_shader, "shader/fragtests.txt");
 	loadShader(gl_data.frag_shader, "shader/mandelbrot.glsl");
+	//loadShader(gl_data.frag_shader, "shader/red.txt");
 	loadShader(gl_data.vert_shader, "shader/vertexshader.txt");
 	compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object);
 	if(glIsProgram(gl_data.prog_object) == GL_FALSE) {
