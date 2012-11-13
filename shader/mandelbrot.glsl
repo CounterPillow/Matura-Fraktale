@@ -7,6 +7,8 @@ uniform dvec2 offset;
 out vec4 fragColor;
 uniform unsigned int iter;
 
+uniform sampler1D palette;
+
 void main() {
 	double c_real = double(txcoords.x) * zoom + offset.x;
 	double z_real = c_real;
@@ -28,6 +30,7 @@ void main() {
 		fragColor = vec4(0.0, 0.0, 0.0, 1.0);
 	} else {
 		float ni = float(i) + 1.0 - log(log(float(sqrt(z_r_q + z_i_q)))) / log(2.0);
-		fragColor = vec4(0.0, 0.0, ni / float(iter), 1.0);
+		//fragColor = vec4(0.0, 0.0, ni / float(iter), 1.0);
+		fragColor = texture(palette, abs(ni / float(iter)));
 	}
 }

@@ -46,9 +46,19 @@ static struct {
 static double offsetCoords[2] = {0.0, 0.0};
 
 const unsigned char palette[] = {
+       				0,0,0,
+				0,0,64,
+				0,0,128,
+				0,0,196,
+				0,0,255,
+				255,255,0,
+				255,255,255
+				};
+			
+			/*{
 			255,0,0,
 			0,255,0,
-			0,0,255};
+			0,0,255};*/
 
 static struct {
 	int width;
@@ -86,6 +96,10 @@ int mainLoop() {
 	double frameTimer = glfwGetTime();
 	
 	// Won't change this at runtime
+	if(!glIsTexture(gl_data.color_palette)) {
+		printf("Not a texture. :(\n");
+	}
+	glActiveTexture(GL_TEXTURE0);
 	glUseProgram(gl_data.prog_object);
 	glUniform1f(gl_data.shader_uniform.ratio, window.ratio);	
 	glUniform1ui(gl_data.shader_uniform.iter, max_iterations);	
@@ -211,6 +225,7 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int vsync) {
 	}
 	checkForGLError("Non-fatal GLEW bug (fix it GLEW!)");
 	generateQuad();
+	generateTexture();
 	initShader();
 	//loadShader(gl_data.frag_shader, "shader/fragtests.txt");
 	loadShader(gl_data.frag_shader, "shader/mandelbrot.glsl");
@@ -255,7 +270,10 @@ void generateQuad() {
 void generateTexture() {
 	glGenTextures(1, &gl_data.color_palette);
 	glBindTexture(GL_TEXTURE_1D, gl_data.color_palette);
-
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB8, 7, 0, GL_RGB, GL_UNSIGNED_BYTE, palette);
 };
 
 int initShader() {
