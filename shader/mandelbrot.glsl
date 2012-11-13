@@ -1,6 +1,5 @@
 #version 400 core
 #extension GL_ARB_gpu_shader_fp64 : enable
-#extension GL_NV_gpu_shader5 : enable // it told me I needed this.
 
 in vec2 txcoords;
 uniform double zoom;
@@ -9,23 +8,26 @@ out vec4 fragColor;
 uniform unsigned int iter;
 
 void main() {
-	double z_real = 0;
 	double c_real = double(txcoords.x) * zoom + offset.x;
-	double z_imag = 0;
+	double z_real = c_real;
 	double c_imag = double(txcoords.y) * zoom + offset.y;
+	double z_imag = c_imag;
+	double z_r_q = 0;
+	double z_i_q = 0;
 	int i;
 	for(i = 0; i < iter; ++i) {
-		if(z_real * z_real + z_imag * z_imag > 4.0) {
+		z_r_q = z_real * z_real;	// z_real^2
+		z_i_q = z_imag * z_imag;	// z_imag^2
+		if(z_r_q + z_i_q > 4.0) {
 			break;
 		}
-		double old_z_r = z_real;
-		double old_z_i = z_imag;
-		z_real = old_z_r * old_z_r - old_z_i * old_z_i + c_real;
-		z_imag = 2.0 * old_z_r * old_z_i + c_imag;
+		z_imag = 2.0 * z_real * z_imag + c_imag;
+		z_real = z_r_q - z_i_q + c_real;
 	}
 	if(i == iter) {	// Check whether value was inside the set
-		fragColor = vec4(1.0, 1.0, 1.0, 1.0);
+		fragColor = vec4(0.0, 0.0, 0.0, 1.0);
 	} else {
-		fragColor = vec4(float(i) / float(iter), 0.0, 0.0, 1.0);
+		float ni = float(i) + 1.0 - log(log(float(sqrt(z_r_q + z_i_q)))) / log(2.0);
+		fragColor = vec4(0.0, 0.0, ni / float(iter), 1.0);
 	}
 }

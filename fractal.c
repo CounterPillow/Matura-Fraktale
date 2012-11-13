@@ -17,6 +17,7 @@ static struct {
 	GLuint frag_shader;
 	GLuint vert_shader;
 	GLuint prog_object;
+	GLuint color_palette;
 
 	struct {
 		GLint position;
@@ -31,68 +32,107 @@ static struct {
 
 } gl_data;
 
-// Input Values
 static double zoom = 1.0;
 static double zoomAccel = 0.0;
-static int mouseScroll;
 const double zoomFactor = 0.01;
-const double zoomInertia = 0.8;
+const double zoomInertia = 0.85;
 
-static int mouseCoords[2];
-static int oldMouseCoords[2];
-static double offsetCoords[2] = {0.0, 0.0};//= {-2.0, -1.1};
+static struct {
+	int scroll;
+	int coords[2];
+	int oldCoords[2];
+} mouse;
 
-static float resolutionRatio = 0;
+static double offsetCoords[2] = {0.0, 0.0};
 
-static int wres_w;
-static int wres_h;
+const unsigned char palette[] = {
+			255,0,0,
+			0,255,0,
+			0,0,255};
+
+static struct {
+	int width;
+	int height;
+	float ratio;
+} window;
 
 static GLuint max_iterations = 100;
 
 int main(int argc, char **argv) {
-	wres_w = 800;
-	wres_h = 600;
-	argGetResolution(argc, argv, &wres_w, &wres_h);
-	initGraphics(wres_w, wres_h, argGetFullscreen(argc, argv));
-	int glErr = glGetError();
-	if(glErr == GL_INVALID_OPERATION) {
-		printf("Whoops! Encountered %d!\n", glErr);
+	// Check whether the help command line option was specified and react accordingly
+	if(argNeedsHelp(argc, argv)) {
+		outputHelpText();
+		return 0;	
 	}
+	
+	// default values for resolution
+	window.width = 800;
+	window.height = 600;
+	
+	argGetResolution(argc, argv, &window.width, &window.height);
+	
+	initGraphics(window.width, window.height, argGetFullscreen(argc, argv), argGetVsync(argc, argv));
 
-	mouseScroll = glfwGetMouseWheel();
-	resolutionRatio = (float)wres_h / (float)wres_w;
-	printf("%f\n", resolutionRatio);
+	mouse.scroll = glfwGetMouseWheel();
+	window.ratio = (float)window.height / (float)window.width;
 
 	return mainLoop();	// Call the main loop and return it's return code when quitting
 };
 
 int mainLoop() {
 	int isRunning = true;
+	int framesPassed = 0;
+	glfwSetTime(0.0);
+	double frameTimer = glfwGetTime();
+	
+	// Won't change this at runtime
+	glUseProgram(gl_data.prog_object);
+	glUniform1f(gl_data.shader_uniform.ratio, window.ratio);	
+	glUniform1ui(gl_data.shader_uniform.iter, max_iterations);	
+	
 	while(isRunning) {
-		oldMouseCoords[0] = mouseCoords[0]; oldMouseCoords[1] = mouseCoords[1];
-		glfwGetMousePos(&mouseCoords[0], &mouseCoords[1]);
+
+		// FPS (Frames-Per-Second) measurement
+		if(glfwGetTime() - frameTimer >= 1.0) {
+			printf("FPS: %f\n", (double)framesPassed / (glfwGetTime() - frameTimer));
+			frameTimer = glfwGetTime();
+			framesPassed = 0;
+		}
+		
+		// Update mouse coordinate variables
+		mouse.oldCoords[0] = mouse.coords[0]; mouse.oldCoords[1] = mouse.coords[1];
+		glfwGetMousePos(&mouse.coords[0], &mouse.coords[1]);
+		
+		// Zoom calculations
 		zoomAccel *= zoomInertia;
-		zoomAccel -= (glfwGetMouseWheel() - mouseScroll) * zoomFactor * fabs(zoom);
+		zoomAccel -= (float)(glfwGetMouseWheel() - mouse.scroll) * zoomFactor * fabs(zoom);
 		// This line may need explanation
 		// it cuts off the zoomAccel value if it's too small to make a noticeable change within one frame
 		// and thus eliminates some weird "flickering"
 		// No precise math going on here.
 		zoomAccel = fabs(zoomAccel) < (0.2 * zoomFactor * zoom) ? 0.0 : zoomAccel;
+		
 		zoom += zoomAccel;
-		mouseScroll = glfwGetMouseWheel();
+		mouse.scroll = glfwGetMouseWheel();
 
+		
 		// Get the change in mouse coordinates, multiply by zoom, add to offset
 		if(glfwGetMouseButton(GLFW_MOUSE_BUTTON_LEFT)) {
-			offsetCoords[0] -= (double)(mouseCoords[0] - oldMouseCoords[0]) / (double)wres_w * zoom;
-			offsetCoords[1] += (double)(mouseCoords[1] - oldMouseCoords[1]) / (double)wres_h * zoom;
+			offsetCoords[0] -= (double)(mouse.coords[0] - mouse.oldCoords[0]) / (double)window.width * zoom;
+			offsetCoords[1] += (double)(mouse.coords[1] - mouse.oldCoords[1]) / (double)window.height * zoom;
+			glUniform2d(gl_data.shader_uniform.offset, offsetCoords[0], offsetCoords[1]);	
 		}
 
 		// max_iterations = 30;// * (1.0 / zoom);
 		if(glfwGetKey( GLFW_KEY_KP_ADD ) || glfwGetKey( GLFW_KEY_KP_SUBTRACT )) {
 			max_iterations += 10*(glfwGetKey( GLFW_KEY_KP_ADD ) - glfwGetKey( GLFW_KEY_KP_SUBTRACT ));
+			glUniform1ui(gl_data.shader_uniform.iter, max_iterations);	
 			printf("Maximum iterations: %u\n", max_iterations);
 		}
+
 		renderFunc();
+
+		++framesPassed;	// For FPS measurement
 
 		if(glfwGetKey( GLFW_KEY_ESC ) || !glfwGetWindowParam( GLFW_OPENED )) {
 			isRunning = false;
@@ -107,11 +147,7 @@ void renderFunc() { // Main rendering function
 	glClear(GL_COLOR_BUFFER_BIT);
 		
 	glBindBuffer(GL_ARRAY_BUFFER, gl_data.vbo);
-	glUseProgram(gl_data.prog_object);
 	glUniform1d(gl_data.shader_uniform.zoom, zoom);	
-	glUniform1f(gl_data.shader_uniform.ratio, resolutionRatio);	
-	glUniform2d(gl_data.shader_uniform.offset, offsetCoords[0], offsetCoords[1]);	
-	glUniform1ui(gl_data.shader_uniform.iter, max_iterations);	
 
 	glVertexAttribPointer(	gl_data.shader_attrib.position,	// index
 				2,				// size
@@ -119,20 +155,19 @@ void renderFunc() { // Main rendering function
 				GL_FALSE,			// normalized
 				sizeof(GLfloat)*2,		// stride
 				NULL);				// pointer
-	checkForGLError("mainloop");
+	//checkForGLError("mainloop");
 	glEnableVertexAttribArray(gl_data.shader_attrib.position);
 	
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_data.ibo);
 	glDrawRangeElements(GL_TRIANGLE_FAN, 0, 3, 4, GL_UNSIGNED_SHORT, NULL);	
 	
 	// Return to 'clean' state
-	//glUseProgram(0);	
 	glDisableVertexAttribArray(0);	
 	// Swap Back- and Frontbuffer
 	glfwSwapBuffers();
 };
 
-int initGraphics(int gfx_w, int gfx_h, int fullscreen) {
+int initGraphics(int gfx_w, int gfx_h, int fullscreen, int vsync) {
 	if(!glfwInit()) {
 		fprintf(stderr, "Unable to initialize GLFW!\n");
 	}
@@ -142,10 +177,9 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen) {
 	}
 	
 	// Set some hints
-	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-	//glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-	glfwOpenWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );	// Only use OpenGL 3.0 and above (sorry intel.)
-	glfwOpenWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );	// Only use OpenGL 3.0 and above (sorry intel.)
+	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);	// We require OpenGL 4, which means older cards/Intel GPUs won't be able to run this.
+	glfwOpenWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
+	glfwOpenWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
 	glfwOpenWindowHint( GLFW_WINDOW_NO_RESIZE, GL_TRUE );		// Disallow window resizing (pain in the ass to handle)
 	
 	if(!glfwOpenWindow(
@@ -157,6 +191,11 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen) {
 		fprintf(stderr, "Unable to open GLFW window.\n");			
 	}
 	
+	// VSync off
+	if( !vsync ) {
+		glfwSwapInterval(0);
+	}
+	
 	// Window Title
 	glfwSetWindowTitle( "Fractals are awesome!" );
 	
@@ -166,9 +205,9 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen) {
 		fprintf(stderr, "GLEW failed to initialize.\n");	
 	}
 	printf("Okay glew should be started now...\n");
-	if (!GLEW_VERSION_3_3) {
-		fprintf(stderr, "OpenGL Version 3.3 is not available on your system.\n");
-		return ERR_GLEW_NOT_3_3;
+	if (!GLEW_VERSION_4_0) {
+		fprintf(stderr, "OpenGL Version 4.0 is not available on your system.\n");
+		return ERR_GLEW_NOT_4_0;
 	}
 	checkForGLError("Non-fatal GLEW bug (fix it GLEW!)");
 	generateQuad();
@@ -178,9 +217,8 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen) {
 	//loadShader(gl_data.frag_shader, "shader/red.txt");
 	loadShader(gl_data.vert_shader, "shader/vertexshader.txt");
 	compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object);
-	if(glIsProgram(gl_data.prog_object) == GL_FALSE) {
-		printf("not a program\n");
-	}
+	
+	// Get the attribute position/uniform locations
 	gl_data.shader_attrib.position = glGetAttribLocation(gl_data.prog_object, "position");	
 	gl_data.shader_uniform.zoom = glGetUniformLocation(gl_data.prog_object, "zoom");
 	gl_data.shader_uniform.ratio = glGetUniformLocation(gl_data.prog_object, "ratio");
@@ -212,6 +250,12 @@ void generateQuad() {
 	// Generate Vertex Array Object
 	glGenVertexArrays(1, &gl_data.vao);
 	glBindVertexArray(gl_data.vao);
+};
+
+void generateTexture() {
+	glGenTextures(1, &gl_data.color_palette);
+	glBindTexture(GL_TEXTURE_1D, gl_data.color_palette);
+
 };
 
 int initShader() {

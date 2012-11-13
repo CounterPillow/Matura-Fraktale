@@ -11,5 +11,8 @@
 
 void argGetResolution( int argc, char** argv, int* gfx_w, int* gfx_h );
 int argGetFullscreen( int argc, char** argv );
+int argGetVsync( int argc, char** argv );
+int argNeedsHelp( int argc, char** argv );
+void outputHelpText(void);
 void checkForGLError( const char* identifier );
 #endif
