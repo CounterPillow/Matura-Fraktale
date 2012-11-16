@@ -55,7 +55,7 @@ void saveScreenshot( int width, int height ) {
 	time(&timestamp);
 	struct tm * ltime = localtime(&timestamp);
 	strftime(filename, 20, "%H_%M_%S_%d_%m_%Y", ltime); // Will break on Jan 1st 10,000 00:00. oh well.
-	strncpy(filename + 19, ".png\0", 5);	// append file extension
+	strcat(filename, ".png"); // append file extension
 	strcat(fullpath, filename);	// glue directory and filename together
 	
 	unsigned char * pixeldata = malloc(width * height * 3);
