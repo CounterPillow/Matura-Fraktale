@@ -10,8 +10,8 @@ GLEW_LIB_PATH = "D:/glew/lib"
 
 # Don't 'adjust' these though...
 INCLUDEDIRS = -I$(GLEW_PATH)
-CFLAGS = -Wall $(INCLUDEDIRS)
-LDFLAGS = -L$(GLEW_LIB_PATH) -lglew32 -lglfw -lopengl32 #-Wl,--subsystem,windows
+CFLAGS = -Wall $(INCLUDEDIRS) -DGLFW_DLL
+LDFLAGS = -L$(GLEW_LIB_PATH) -lglew32 -lglfwdll -lopengl32 #-Wl,--subsystem,windows
 # subsystem,windows is to build it as "GUI app", throwing all stdout/stderr into a black hole.
 
 all: fractal
