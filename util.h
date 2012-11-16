@@ -16,6 +16,7 @@ typedef struct {
 	int y_resolution;
 	int showHelp;
 	char* paletteFile; 
+	int numFSAASamples;
 } cliArgs;
 
 void parseArgs( int argc, char** argv, cliArgs* dest );

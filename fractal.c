@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
 	
 	//argGetResolution(argc, argv, &window.width, &window.height);
 	
-	initGraphics(window.width, window.height, config.useFullscreen, config.noVSync);
+	initGraphics(window.width, window.height, config.useFullscreen, config.noVSync, config.numFSAASamples);
 
 	mouse.scroll = glfwGetMouseWheel();
 	window.ratio = (float)window.height / (float)window.width;
@@ -108,7 +108,7 @@ int mainLoop() {
 	// Binding the buffers, they will stay bound through the entire course of the program.
 	glBindBuffer(GL_ARRAY_BUFFER, gl_data.vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_data.ibo);
-	
+
 	while(isRunning) {
 
 		// FPS (Frames-Per-Second) measurement
@@ -137,8 +137,8 @@ int mainLoop() {
 		
 		// Get the change in mouse coordinates, multiply by zoom, add to offset
 		if(glfwGetMouseButton(GLFW_MOUSE_BUTTON_LEFT)) {
-			offsetCoords[0] -= (double)(mouse.coords[0] - mouse.oldCoords[0]) / (double)window.width * zoom;
-			offsetCoords[1] += (double)(mouse.coords[1] - mouse.oldCoords[1]) / (double)window.height * zoom;
+			offsetCoords[0] -= (double)(mouse.coords[0] - mouse.oldCoords[0]) / (double)((window.width + window.height) / 2.0) * zoom;
+			offsetCoords[1] += (double)(mouse.coords[1] - mouse.oldCoords[1]) / (double)((window.width + window.height) / 2.0) * zoom;
 			glUniform2d(gl_data.shader_uniform.offset, offsetCoords[0], offsetCoords[1]);	
 		}
 
@@ -181,7 +181,7 @@ void renderFunc() { // Main rendering function
 	glfwSwapBuffers();
 };
 
-int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync) {
+int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsaa) {
 	if(!glfwInit()) {
 		fprintf(stderr, "Unable to initialize GLFW!\n");
 	}
@@ -195,6 +195,9 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync) {
 	glfwOpenWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
 	glfwOpenWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
 	glfwOpenWindowHint( GLFW_WINDOW_NO_RESIZE, GL_TRUE );		// Disallow window resizing (pain in the ass to handle)
+	if(fsaa) {
+		glfwOpenWindowHint( GLFW_FSAA_SAMPLES, fsaa );
+	}
 	
 	if(!glfwOpenWindow(
 		gfx_w, gfx_h,	// Window Resolution
