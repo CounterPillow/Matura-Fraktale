@@ -8,6 +8,8 @@
 #include "errorcodes.h"
 #include "shader.h"
 #include "util.h"
+#include "imaging.h"
+#include "advinput.h"
 
 // Stores resources for OpenGL in a global struct
 static struct {
@@ -32,6 +34,7 @@ static struct {
 
 } gl_data;
 
+
 static double zoom = 1.0;
 static double zoomAccel = 0.0;
 const double zoomFactor = 0.01;
@@ -45,20 +48,6 @@ static struct {
 
 static double offsetCoords[2] = {0.0, 0.0};
 
-const unsigned char palette[] = {
-       				0,0,0,
-				0,0,64,
-				0,0,128,
-				0,0,196,
-				0,0,255,
-				255,255,0,
-				255,255,255
-				};
-			
-			/*{
-			255,0,0,
-			0,255,0,
-			0,0,255};*/
 
 static struct {
 	int width;
@@ -66,22 +55,26 @@ static struct {
 	float ratio;
 } window;
 
-static GLuint max_iterations = 100;
+static cliArgs config;
+
+static int max_iterations = 100;
 
 int main(int argc, char **argv) {
+	parseArgs(argc, argv, &config);
 	// Check whether the help command line option was specified and react accordingly
-	if(argNeedsHelp(argc, argv)) {
+	if(config.showHelp) {
 		outputHelpText();
 		return 0;	
 	}
+
 	
 	// default values for resolution
-	window.width = 800;
-	window.height = 600;
+	window.width = config.x_resolution != 0 ? config.x_resolution : 800;
+	window.height = config.y_resolution != 0 ? config.y_resolution : 600;
 	
-	argGetResolution(argc, argv, &window.width, &window.height);
+	//argGetResolution(argc, argv, &window.width, &window.height);
 	
-	initGraphics(window.width, window.height, argGetFullscreen(argc, argv), argGetVsync(argc, argv));
+	initGraphics(window.width, window.height, config.useFullscreen, config.noVSync);
 
 	mouse.scroll = glfwGetMouseWheel();
 	window.ratio = (float)window.height / (float)window.width;
@@ -94,15 +87,27 @@ int mainLoop() {
 	int framesPassed = 0;
 	glfwSetTime(0.0);
 	double frameTimer = glfwGetTime();
-	
+
 	// Won't change this at runtime
-	if(!glIsTexture(gl_data.color_palette)) {
-		printf("Not a texture. :(\n");
-	}
-	glActiveTexture(GL_TEXTURE0);
 	glUseProgram(gl_data.prog_object);
+	
+	// these uniforms remain constant or are only updated on certain events
 	glUniform1f(gl_data.shader_uniform.ratio, window.ratio);	
-	glUniform1ui(gl_data.shader_uniform.iter, max_iterations);	
+	glUniform1i(gl_data.shader_uniform.iter, max_iterations);
+
+	glVertexAttribPointer(	gl_data.shader_attrib.position,	// index
+				2,				// size
+				GL_FLOAT,			// type
+				GL_FALSE,			// normalized
+				sizeof(GLfloat)*2,		// stride
+				NULL);				// pointer
+
+	// no need to ever disable this, so we'll enable it here.
+	glEnableVertexAttribArray(gl_data.shader_attrib.position);
+	
+	// Binding the buffers, they will stay bound through the entire course of the program.
+	glBindBuffer(GL_ARRAY_BUFFER, gl_data.vbo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_data.ibo);
 	
 	while(isRunning) {
 
@@ -139,18 +144,26 @@ int mainLoop() {
 
 		// max_iterations = 30;// * (1.0 / zoom);
 		if(glfwGetKey( GLFW_KEY_KP_ADD ) || glfwGetKey( GLFW_KEY_KP_SUBTRACT )) {
-			max_iterations += 10*(glfwGetKey( GLFW_KEY_KP_ADD ) - glfwGetKey( GLFW_KEY_KP_SUBTRACT ));
-			glUniform1ui(gl_data.shader_uniform.iter, max_iterations);	
-			printf("Maximum iterations: %u\n", max_iterations);
+			max_iterations += 10*( max_iterations > 0 ? (glfwGetKey( GLFW_KEY_KP_ADD ) - glfwGetKey( GLFW_KEY_KP_SUBTRACT )) : glfwGetKey( GLFW_KEY_KP_ADD ));
+			glUniform1i(gl_data.shader_uniform.iter, max_iterations);	
+			printf("Maximum iterations: %d\n", max_iterations);
 		}
 
 		renderFunc();
 
 		++framesPassed;	// For FPS measurement
 
+		// Screenshot
+		if(keyHit( GLFW_KEY_F2 )){
+			saveScreenshot(window.width, window.height);	
+		}
+
 		if(glfwGetKey( GLFW_KEY_ESC ) || !glfwGetWindowParam( GLFW_OPENED )) {
 			isRunning = false;
 		}
+
+		// Flush the keyhit stuff
+		keyFlush();
 	}
 	glfwTerminate();
 	return 0;
@@ -159,29 +172,16 @@ int mainLoop() {
 void renderFunc() { // Main rendering function
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
-		
-	glBindBuffer(GL_ARRAY_BUFFER, gl_data.vbo);
-	glUniform1d(gl_data.shader_uniform.zoom, zoom);	
 
-	glVertexAttribPointer(	gl_data.shader_attrib.position,	// index
-				2,				// size
-				GL_FLOAT,			// type
-				GL_FALSE,			// normalized
-				sizeof(GLfloat)*2,		// stride
-				NULL);				// pointer
-	//checkForGLError("mainloop");
-	glEnableVertexAttribArray(gl_data.shader_attrib.position);
+	glUniform1d(gl_data.shader_uniform.zoom, zoom);	
 	
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_data.ibo);
 	glDrawRangeElements(GL_TRIANGLE_FAN, 0, 3, 4, GL_UNSIGNED_SHORT, NULL);	
 	
-	// Return to 'clean' state
-	glDisableVertexAttribArray(0);	
 	// Swap Back- and Frontbuffer
 	glfwSwapBuffers();
 };
 
-int initGraphics(int gfx_w, int gfx_h, int fullscreen, int vsync) {
+int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync) {
 	if(!glfwInit()) {
 		fprintf(stderr, "Unable to initialize GLFW!\n");
 	}
@@ -206,30 +206,36 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int vsync) {
 	}
 	
 	// VSync off
-	if( !vsync ) {
+	if( disableVSync ) {
 		glfwSwapInterval(0);
 	}
 	
 	// Window Title
 	glfwSetWindowTitle( "Fractals are awesome!" );
+
+	// Set the input callback function pointer for advinput.h
+	glfwSetKeyCallback(&keyCallbackFun);	
 	
 	// Experimental, because we're just that crazy!
 	glewExperimental = GL_TRUE;
 	if(glewInit() != GLEW_OK) {
 		fprintf(stderr, "GLEW failed to initialize.\n");	
 	}
-	printf("Okay glew should be started now...\n");
 	if (!GLEW_VERSION_4_0) {
 		fprintf(stderr, "OpenGL Version 4.0 is not available on your system.\n");
 		return ERR_GLEW_NOT_4_0;
 	}
 	checkForGLError("Non-fatal GLEW bug (fix it GLEW!)");
+
+	// generate some ressources for OpenGL like the quad and the 1D texture
 	generateQuad();
-	generateTexture();
+	if(initTexture(&gl_data.color_palette, config.paletteFile)) {
+		fprintf(stderr, "Couldn't load '%s' for some reason.\n", config.paletteFile);
+	}
+	
+	// Init & Load shaders
 	initShader();
-	//loadShader(gl_data.frag_shader, "shader/fragtests.txt");
 	loadShader(gl_data.frag_shader, "shader/mandelbrot.glsl");
-	//loadShader(gl_data.frag_shader, "shader/red.txt");
 	loadShader(gl_data.vert_shader, "shader/vertexshader.txt");
 	compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object);
 	
@@ -265,15 +271,6 @@ void generateQuad() {
 	// Generate Vertex Array Object
 	glGenVertexArrays(1, &gl_data.vao);
 	glBindVertexArray(gl_data.vao);
-};
-
-void generateTexture() {
-	glGenTextures(1, &gl_data.color_palette);
-	glBindTexture(GL_TEXTURE_1D, gl_data.color_palette);
-	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB8, 7, 0, GL_RGB, GL_UNSIGNED_BYTE, palette);
 };
 
 int initShader() {

@@ -9,6 +9,16 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
+typedef struct {
+	int useFullscreen;
+	int noVSync;
+	int x_resolution;
+	int y_resolution;
+	int showHelp;
+	char* paletteFile; 
+} cliArgs;
+
+void parseArgs( int argc, char** argv, cliArgs* dest );
 void argGetResolution( int argc, char** argv, int* gfx_w, int* gfx_h );
 int argGetFullscreen( int argc, char** argv );
 int argGetVsync( int argc, char** argv );

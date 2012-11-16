@@ -5,7 +5,7 @@ in vec2 txcoords;
 uniform double zoom;
 uniform dvec2 offset;
 out vec4 fragColor;
-uniform unsigned int iter;
+uniform int iter;
 
 uniform sampler1D palette;
 

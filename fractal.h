@@ -2,7 +2,7 @@
 #define _FRACTAL_H_
 void renderFunc();
 int mainLoop();
-int initGraphics(int gfx_w, int gfx_h, int fullscreen, int vsync);
+int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync);
 void generateQuad(); 
 void generateTexture();
 int initShader(); 
