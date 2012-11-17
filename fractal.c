@@ -124,14 +124,14 @@ int mainLoop() {
 		
 		// Zoom calculations
 		zoomAccel *= zoomInertia;
-		zoomAccel -= (float)(glfwGetMouseWheel() - mouse.scroll) * zoomFactor * fabs(zoom);
+		zoomAccel -= (float)(glfwGetMouseWheel() - mouse.scroll) * zoomFactor;
 		// This line may need explanation
 		// it cuts off the zoomAccel value if it's too small to make a noticeable change within one frame
 		// and thus eliminates some weird "flickering"
 		// No precise math going on here.
-		zoomAccel = fabs(zoomAccel) < (0.2 * zoomFactor * zoom) ? 0.0 : zoomAccel;
+		zoomAccel = fabs(zoomAccel) < 0.01 ? 0.0 : zoomAccel;
 		
-		zoom += zoomAccel;
+		zoom += zoomAccel * fabs(zoom);
 		mouse.scroll = glfwGetMouseWheel();
 
 		
@@ -144,7 +144,7 @@ int mainLoop() {
 
 		// max_iterations = 30;// * (1.0 / zoom);
 		if(glfwGetKey( GLFW_KEY_KP_ADD ) || glfwGetKey( GLFW_KEY_KP_SUBTRACT )) {
-			max_iterations += 10*( max_iterations > 0 ? (glfwGetKey( GLFW_KEY_KP_ADD ) - glfwGetKey( GLFW_KEY_KP_SUBTRACT )) : glfwGetKey( GLFW_KEY_KP_ADD ));
+			max_iterations += 1*( max_iterations > 0 ? (glfwGetKey( GLFW_KEY_KP_ADD ) - glfwGetKey( GLFW_KEY_KP_SUBTRACT )) : glfwGetKey( GLFW_KEY_KP_ADD ));
 			glUniform1i(gl_data.shader_uniform.iter, max_iterations);	
 			printf("Maximum iterations: %d\n", max_iterations);
 		}

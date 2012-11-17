@@ -8,6 +8,7 @@
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
+#define clamp(a,b,c) { min(max(a,b),c); }
 
 typedef struct {
 	int useFullscreen;
