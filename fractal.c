@@ -239,7 +239,7 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 	
 	// Init & Load shaders
 	initShader();
-	loadShader(gl_data.frag_shader, "shader/mandelbrot.glsl");
+	loadShader(gl_data.frag_shader, "shader/mandelbrot_unrolled.glsl");
 	loadShader(gl_data.vert_shader, "shader/vertexshader.txt");
 	compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object);
 	
