@@ -5,7 +5,6 @@
 #include <glew.h>
 #include <GL/glfw.h>
 #include "fractal.h"
-#include "errorcodes.h"
 #include "shader.h"
 #include "util.h"
 #include "imaging.h"
@@ -74,7 +73,9 @@ int main(int argc, char **argv) {
 	
 	//argGetResolution(argc, argv, &window.width, &window.height);
 	
-	initGraphics(window.width, window.height, config.useFullscreen, config.noVSync, config.numFSAASamples);
+	if(initGraphics(window.width, window.height, config.useFullscreen, config.noVSync, config.numFSAASamples)) {
+		return 1;	// if there has been an error, don't even bother to continue	
+	}
 
 	mouse.scroll = glfwGetMouseWheel();
 	window.ratio = (float)window.height / (float)window.width;
@@ -226,7 +227,7 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 	}
 	if (!GLEW_VERSION_4_0) {
 		fprintf(stderr, "OpenGL Version 4.0 is not available on your system.\n");
-		return ERR_GLEW_NOT_4_0;
+		return 1;
 	}
 	checkForGLError("Non-fatal GLEW bug (fix it GLEW!)");
 

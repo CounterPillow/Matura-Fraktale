@@ -30,7 +30,6 @@ void main() {
 		fragColor = vec4(0.0, 0.0, 0.0, 1.0);
 	} else {
 		float ni = float(i) + 1.0 - log(log(float(sqrt(z_r_q + z_i_q)))) / log(2.0);
-		//fragColor = vec4(0.0, 0.0, ni / float(iter), 1.0);
 		fragColor = texture(palette, abs(ni / float(iter)));
 	}
 }
