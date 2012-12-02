@@ -38,7 +38,7 @@ void main() {
 	} else {
 		ni = float(i) + 1.0 - log(log(float(sqrt(z_r_q + z_i_q)))) / log(2.0);
 	}
-	if(i == iter) {	// Check whether value was inside the set
+	if(i >= iter) {	// Check whether value was inside the set
 		fragColor = vec4(0.0, 0.0, 0.0, 1.0);
 	} else {
 		fragColor = texture(palette, abs(ni / float(iter)));
