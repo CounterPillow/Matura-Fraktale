@@ -66,18 +66,21 @@ int main(int argc, char **argv) {
 		return 0;	
 	}
 
-	
 	// default values for resolution
-	window.width = config.x_resolution != 0 ? config.x_resolution : 800;
-	window.height = config.y_resolution != 0 ? config.y_resolution : 600;
-	
-	//argGetResolution(argc, argv, &window.width, &window.height);
-	
+	window.width = fallback(config.x_resolution, 800);
+	window.height = fallback(config.y_resolution, 600);
+
+	// set the starting offsets
+	offsetCoords[0] = fallback(config.startOffsetRe, 0.0);
+	offsetCoords[1] = fallback(config.startOffsetIm, 0.0);
+	zoom = fallback(config.startZoom, 1.0);
+	max_iterations = fallback(config.startIterations, 100);
+
 	if(initGraphics(window.width, window.height, config.useFullscreen, config.noVSync, config.numFSAASamples)) {
 		return 1;	// if there has been an error, don't even bother to continue	
 	}
 
-	mouse.scroll = glfwGetMouseWheel();
+	mouse.scroll = glfwGetMouseWheel(); // Set the scroll value to the current mousewheel position
 	window.ratio = (float)window.height / (float)window.width;
 
 	return mainLoop();	// Call the main loop and return it's return code when quitting
@@ -95,6 +98,7 @@ int mainLoop() {
 	// these uniforms remain constant or are only updated on certain events
 	glUniform1f(gl_data.shader_uniform.ratio, window.ratio);	
 	glUniform1i(gl_data.shader_uniform.iter, max_iterations);
+	glUniform2d(gl_data.shader_uniform.offset, offsetCoords[0], offsetCoords[1]);	
 
 	glVertexAttribPointer(	gl_data.shader_attrib.position,	// index
 				2,				// size
@@ -114,7 +118,7 @@ int mainLoop() {
 
 		// FPS (Frames-Per-Second) measurement
 		if(glfwGetTime() - frameTimer >= 1.0) {
-			printf("FPS: %f\n", (double)framesPassed / (glfwGetTime() - frameTimer));
+			printf("FPS: %lf\n", (double)framesPassed / (glfwGetTime() - frameTimer));
 			frameTimer = glfwGetTime();
 			framesPassed = 0;
 		}
@@ -155,8 +159,13 @@ int mainLoop() {
 		++framesPassed;	// For FPS measurement
 
 		// Screenshot
-		if(keyHit( GLFW_KEY_F2 )){
+		if(keyHit( GLFW_KEY_F2 )) {
 			saveScreenshot(window.width, window.height);	
+		}
+
+		// In case anyone wants to output the current coordinates
+		if(keyHit( GLFW_KEY_F3 )) {
+			printf("You are currently at: Re: %lf, Im: %lf\n", offsetCoords[0], offsetCoords[1]);
 		}
 
 		if(glfwGetKey( GLFW_KEY_ESC ) || !glfwGetWindowParam( GLFW_OPENED )) {

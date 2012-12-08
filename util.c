@@ -21,9 +21,21 @@ void parseArgs( int argc, char** argv, cliArgs *dest ) {
 			++i;
 		} else if( strcmp(argv[i], "--fsaa") == 0 && (i < argc - 1)) {
 			(*dest).numFSAASamples = atoi(argv[i + 1]);
-			++i;		
+			++i;
+		} else if( strcmp(argv[i], "--real") == 0 && (i < argc - 1)) {
+			sscanf(argv[i + 1], "%lf", &(*dest).startOffsetRe);
+			++i;
+		} else if( strcmp(argv[i], "--imaginary") == 0 && (i < argc - 1)) {
+			sscanf(argv[i + 1], "%lf", &(*dest).startOffsetIm);
+			++i;
+		} else if( strcmp(argv[i], "--zoom") == 0 && (i < argc - 1)) {
+			sscanf(argv[i + 1], "%lf", &(*dest).startZoom);
+			++i;
+		} else if( strcmp(argv[i], "--iterations") == 0 && (i < argc - 1)) {
+			sscanf(argv[i + 1], "%d", &(*dest).startIterations);
+			++i;
 		} else {
-			fprintf(stderr, "Unknown argument: '%s'\n", argv[i]);
+			fprintf(stderr, "Unknown argument or invalid number of parameters: '%s'\n", argv[i]);
 		}
 	}
 }	
@@ -42,7 +54,15 @@ void outputHelpText(void) {
 		"					PSD (don't actually use that), ...)\n\n"
 		"	--fsaa amount			Specify the number of FSAA samples to\n"
 		"					use, i.e. 2, 4, 8, 16,... (Default: 0)\n"
-		"					Be warned: Eats up a lot of performance.\n"
+		"					Be warned: Eats up a lot of performance.\n\n"
+		"	--real number			Set real coordinate to center at.\n"
+		"					(Default: 0.0)\n\n"
+		"	--imaginary number		Set imaginary coordinate to center at.\n"
+		"					(Default: 0.0)\n\n"
+		"	--zoom number			Set zoom to start at.\n"
+		"					(Default: 1.0)\n\n"
+		"	--iterations number		Set amount of maximum iterations.\n"
+		"					(Default: 100)\n\n"
 	      );
 }
 
