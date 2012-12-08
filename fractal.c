@@ -75,6 +75,7 @@ int main(int argc, char **argv) {
 	offsetCoords[1] = fallback(config.startOffsetIm, 0.0);
 	zoom = fallback(config.startZoom, 1.0);
 	max_iterations = fallback(config.startIterations, 100);
+	config.showFPS = fallback(config.showFPS, 0);
 
 	if(initGraphics(window.width, window.height, config.useFullscreen, config.noVSync, config.numFSAASamples)) {
 		return 1;	// if there has been an error, don't even bother to continue	
@@ -121,7 +122,9 @@ int mainLoop() {
 		
 		// FPS (Frames-Per-Second) measurement
 		if(glfwGetTime() - frameTimer >= 1.0) {
-			printf("FPS: %lf\n", (double)framesPassed / (glfwGetTime() - frameTimer));
+			if(config.showFPS) {
+				printf("FPS: %lf\n", (double)framesPassed / (glfwGetTime() - frameTimer));
+			}
 			frameTimer = glfwGetTime();
 			framesPassed = 0;
 		}

@@ -14,6 +14,8 @@ void parseArgs( int argc, char** argv, cliArgs *dest ) {
 			(*dest).useFullscreen = 1;
 		} else if( strcmp(argv[i], "--novsync") == 0 ) {
 			(*dest).noVSync = 1;
+		} else if( strcmp(argv[i], "--showfps") == 0 ) {
+			(*dest).showFPS = 1;
 		} else if( strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0 ) {
 			(*dest).showHelp = 1;	
 		} else if( strcmp(argv[i], "--palette") == 0 && (i < argc - 1)) {
@@ -48,6 +50,8 @@ void outputHelpText(void) {
 		"	--resolution width,height	Set window resolution\n\n"
 		"	--fullscreen			Start in fullscreen mode\n\n"
 		"	--novsync			Disable vsync\n\n"
+		"	--showfps			Output how many frames are drawn\n"
+		"					per second\n\n"
 		"	-h, --help			Print this help and exit\n\n"
 		"	--palette file			Specify a file to load the color\n"
 		"					palette from (PNG, BMP, JPEG, TGA,\n"

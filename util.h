@@ -28,6 +28,7 @@ typedef struct {
 	double startOffsetIm;
 	double startZoom;
 	int startIterations;
+	int showFPS;
 } cliArgs;
 
 void parseArgs( int argc, char** argv, cliArgs* dest );
