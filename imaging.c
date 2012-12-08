@@ -1,7 +1,7 @@
 #include <time.h>
 #include <string.h>
 #include <stdio.h>
-#include <glew.h>
+#include <GL/glew.h>
 #include <GL/glfw.h>
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION

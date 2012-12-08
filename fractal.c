@@ -234,7 +234,8 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 		0, 0,		// depth- and stencilbuffer. We don't need those.
 		mode )		// Whether it should start in fullscreen or windowed mode
 	  ) {
-		fprintf(stderr, "Unable to open GLFW window.\n");			
+		fprintf(stderr, "Unable to open GLFW window.\n");
+		return 1;
 	}
 	
 	// VSync off
@@ -249,7 +250,8 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 	// Experimental, because we're just that crazy!
 	glewExperimental = GL_TRUE;
 	if(glewInit() != GLEW_OK) {
-		fprintf(stderr, "GLEW failed to initialize.\n");	
+		fprintf(stderr, "GLEW failed to initialize.\n");
+		return 1;	
 	}
 	if (!GLEW_VERSION_4_0) {
 		fprintf(stderr, "OpenGL Version 4.0 is not available on your system.\n");
@@ -267,7 +269,10 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 	initShader();
 	loadShader(gl_data.frag_shader, "shader/mandelbrot_unrolled.glsl");
 	loadShader(gl_data.vert_shader, "shader/vertexshader.glsl");
-	compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object);
+	
+	if(compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object) == 1) {
+		return 1;	
+	}
 	
 	// Get the attribute position/uniform locations
 	gl_data.shader_attrib.position = glGetAttribLocation(gl_data.prog_object, "position");	

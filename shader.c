@@ -2,7 +2,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdio.h>
-#include <glew.h>
+#include <GL/glew.h>
 #include "shader.h"
 int loadShader( unsigned int shader, const char * path ) {
 	// First, let's get the filesize
@@ -41,14 +41,13 @@ int compileShader( unsigned int vs, unsigned int fs, unsigned int po ) {
 	glAttachShader(po, vs);
 	glAttachShader(po, fs);
 	glLinkProgram(po);
-	checkProgForErrors(po);
-	return 0;
+	return checkProgForErrors(po);
 };
 
 int checkProgForErrors( unsigned int prog ) {
 	int errorLength = 0;
 	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &errorLength);
-	if(errorLength != 0) {
+	if(errorLength > 1) { // 0 characters of length + \0 = 1 character of length
 		char* errorMessage;
 		errorMessage = malloc(errorLength);
 		glGetProgramInfoLog(prog, errorLength, NULL, errorMessage);
