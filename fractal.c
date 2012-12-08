@@ -83,6 +83,9 @@ int main(int argc, char **argv) {
 	mouse.scroll = glfwGetMouseWheel(); // Set the scroll value to the current mousewheel position
 	window.ratio = (float)window.height / (float)window.width;
 
+	// Set the input callback function pointer for advinput.h
+	initAdvInput();
+
 	return mainLoop();	// Call the main loop and return it's return code when quitting
 };
 
@@ -115,7 +118,7 @@ int mainLoop() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_data.ibo);
 
 	while(isRunning) {
-
+		
 		// FPS (Frames-Per-Second) measurement
 		if(glfwGetTime() - frameTimer >= 1.0) {
 			printf("FPS: %lf\n", (double)framesPassed / (glfwGetTime() - frameTimer));
@@ -127,9 +130,19 @@ int mainLoop() {
 		mouse.oldCoords[0] = mouse.coords[0]; mouse.oldCoords[1] = mouse.coords[1];
 		glfwGetMousePos(&mouse.coords[0], &mouse.coords[1]);
 		
-		// Zoom calculations
+		
+		/*************************/
+		/*** Zoom calculations ***/
+		/*************************/
+
 		zoomAccel *= zoomInertia;
+		
+		// Scroll to zoom
 		zoomAccel -= (float)(glfwGetMouseWheel() - mouse.scroll) * zoomFactor;
+		
+		// Double-Click to zoom
+		zoomAccel += (mouseDoubleClicked(GLFW_MOUSE_BUTTON_RIGHT) - mouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT)) * 0.1;
+
 		// This line may need explanation
 		// it cuts off the zoomAccel value if it's too small to make a noticeable change within one frame
 		// and thus eliminates some weird "flickering"
@@ -153,6 +166,9 @@ int mainLoop() {
 			glUniform1i(gl_data.shader_uniform.iter, max_iterations);	
 			printf("Maximum iterations: %d\n", max_iterations);
 		}
+		
+		// For polling reasons, this is flushed before rendering
+		mouseFlush();
 
 		renderFunc();
 
@@ -172,7 +188,7 @@ int mainLoop() {
 			isRunning = false;
 		}
 
-		// Flush the keyhit stuff
+		// Call AdvInput Flush functions
 		keyFlush();
 	}
 	glfwTerminate();
@@ -226,8 +242,6 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 	// Window Title
 	glfwSetWindowTitle( "Fractals are awesome!" );
 
-	// Set the input callback function pointer for advinput.h
-	glfwSetKeyCallback(&keyCallbackFun);	
 	
 	// Experimental, because we're just that crazy!
 	glewExperimental = GL_TRUE;
