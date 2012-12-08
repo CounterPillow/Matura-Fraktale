@@ -5,7 +5,7 @@ CC = gcc
 LD = ld
 
 # Adjust these as you need
-GLEW_PATH = "D:/glew/include/GL"
+GLEW_PATH = "D:/glew/include"
 GLEW_LIB_PATH = "D:/glew/lib"
 
 # Don't 'adjust' these though...

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
-#include <glew.h>
+#include <GL/glew.h>
 #include <GL/glfw.h>
 #include "fractal.h"
 #include "shader.h"
