@@ -25,7 +25,7 @@ int loadShader( unsigned int shader, const char * path ) {
 	// Tell OpenGL what the source is
 	glShaderSource(shader, 1, (const char **)&shadercode, &shader_length);
 	
-	// Clean up behind ourselves!
+	// Clean up after ourselves!
 	free(shadercode);
 	fclose(shaderfile);
 	
@@ -35,12 +35,13 @@ int loadShader( unsigned int shader, const char * path ) {
 // Fun fact: also links the shaders.
 int compileShader( unsigned int vs, unsigned int fs, unsigned int po ) {
 	glCompileShader(vs);
-	//checkForErrors(vs);
 	glCompileShader(fs);
-	//checkForErrors(fs);
+
 	glAttachShader(po, vs);
 	glAttachShader(po, fs);
+	
 	glLinkProgram(po);
+	
 	return checkProgForErrors(po);
 };
 

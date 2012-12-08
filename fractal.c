@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
 	mouse.scroll = glfwGetMouseWheel(); // Set the scroll value to the current mousewheel position
 	window.ratio = (float)window.height / (float)window.width;
 
-	// Set the input callback function pointer for advinput.h
+	// Set the input callback function pointers for advinput
 	initAdvInput();
 
 	return mainLoop();	// Call the main loop and return it's return code when quitting
@@ -163,7 +163,6 @@ int mainLoop() {
 			glUniform2d(gl_data.shader_uniform.offset, offsetCoords[0], offsetCoords[1]);	
 		}
 
-		// max_iterations = 30;// * (1.0 / zoom);
 		if(glfwGetKey( GLFW_KEY_KP_ADD ) || glfwGetKey( GLFW_KEY_KP_SUBTRACT )) {
 			max_iterations += 1*( max_iterations > 0 ? (glfwGetKey( GLFW_KEY_KP_ADD ) - glfwGetKey( GLFW_KEY_KP_SUBTRACT )) : glfwGetKey( GLFW_KEY_KP_ADD ));
 			glUniform1i(gl_data.shader_uniform.iter, max_iterations);	
@@ -172,7 +171,9 @@ int mainLoop() {
 		
 		// For polling reasons, this is flushed before rendering
 		mouseFlush();
-
+		keyFlush();
+		
+		// All drawing calls, here we'll spend most of the time
 		renderFunc();
 
 		++framesPassed;	// For FPS measurement
@@ -186,13 +187,12 @@ int mainLoop() {
 		if(keyHit( GLFW_KEY_F3 )) {
 			printf("You are currently at: Re: %lf, Im: %lf\n", offsetCoords[0], offsetCoords[1]);
 		}
-
+		
+		// Exit on Escape/Click on X
 		if(glfwGetKey( GLFW_KEY_ESC ) || !glfwGetWindowParam( GLFW_OPENED )) {
 			isRunning = false;
 		}
 
-		// Call AdvInput Flush functions
-		keyFlush();
 	}
 	glfwTerminate();
 	return 0;
@@ -206,7 +206,7 @@ void renderFunc() { // Main rendering function
 	
 	glDrawRangeElements(GL_TRIANGLE_FAN, 0, 3, 4, GL_UNSIGNED_SHORT, NULL);	
 	
-	// Swap Back- and Frontbuffer
+	// Swap Back- and Frontbuffer, also polls input
 	glfwSwapBuffers();
 };
 
@@ -214,16 +214,15 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 	if(!glfwInit()) {
 		fprintf(stderr, "Unable to initialize GLFW!\n");
 	}
-	int mode = GLFW_WINDOW;
-	if(fullscreen) {
-		mode = GLFW_FULLSCREEN;
-	}
+
+	int mode = fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW;
 	
 	// Set some hints
 	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);	// We require OpenGL 4, which means older cards/Intel GPUs won't be able to run this.
 	glfwOpenWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
 	glfwOpenWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
 	glfwOpenWindowHint( GLFW_WINDOW_NO_RESIZE, GL_TRUE );		// Disallow window resizing (pain in the ass to handle)
+	
 	if(fsaa) {
 		glfwOpenWindowHint( GLFW_FSAA_SAMPLES, fsaa );
 	}
@@ -257,29 +256,32 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 		fprintf(stderr, "OpenGL Version 4.0 is not available on your system.\n");
 		return 1;
 	}
+
+	// Discard the first GL error we get, which is caused by GLEW
 	checkForGLError("Non-fatal GLEW bug (fix it GLEW!)");
 
-	// generate some ressources for OpenGL like the quad and the 1D texture
+	// Generate some ressources for OpenGL i.e. the quad and the 1D texture
 	generateQuad();
 	if(initTexture(&gl_data.color_palette, config.paletteFile)) {
 		fprintf(stderr, "Couldn't load '%s' for some reason.\n", config.paletteFile);
 	}
 	
-	// Init & Load shaders
+	// Init shader objects & load shaders
 	initShader();
 	loadShader(gl_data.frag_shader, "shader/mandelbrot_unrolled.glsl");
 	loadShader(gl_data.vert_shader, "shader/vertexshader.glsl");
 	
+	// Compile, link and error-check them
 	if(compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object) == 1) {
 		return 1;	
 	}
 	
 	// Get the attribute position/uniform locations
-	gl_data.shader_attrib.position = glGetAttribLocation(gl_data.prog_object, "position");	
-	gl_data.shader_uniform.zoom = glGetUniformLocation(gl_data.prog_object, "zoom");
-	gl_data.shader_uniform.ratio = glGetUniformLocation(gl_data.prog_object, "ratio");
-	gl_data.shader_uniform.offset = glGetUniformLocation(gl_data.prog_object, "offset");
-	gl_data.shader_uniform.iter = glGetUniformLocation(gl_data.prog_object, "iter");
+	gl_data.shader_attrib.position = glGetAttribLocation(gl_data.prog_object, "position");	// vertex position
+	gl_data.shader_uniform.zoom = glGetUniformLocation(gl_data.prog_object, "zoom");	// zoom value
+	gl_data.shader_uniform.ratio = glGetUniformLocation(gl_data.prog_object, "ratio");	// aspect ratio
+	gl_data.shader_uniform.offset = glGetUniformLocation(gl_data.prog_object, "offset");	// Offset coordinates
+	gl_data.shader_uniform.iter = glGetUniformLocation(gl_data.prog_object, "iter");	// Max iterations
 	return 0;
 
 };
