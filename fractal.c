@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
-#include <GL/glew.h>
-#include <GL/glfw.h>
+#include <GL/gl3w.h>
+#include <GLFW/glfw3.h>
 #include "fractal.h"
 #include "shader.h"
 #include "util.h"
@@ -40,9 +40,9 @@ const double zoomFactor = 0.01;
 const double zoomInertia = 0.85;
 
 static struct {
-	int scroll;
-	int coords[2];
-	int oldCoords[2];
+	double scroll;
+	double coords[2];
+	double oldCoords[2];
 } mouse;
 
 static double offsetCoords[2] = {0.0, 0.0};
@@ -52,6 +52,7 @@ static struct {
 	int width;
 	int height;
 	float ratio;
+	GLFWwindow* handle;
 } window;
 
 static cliArgs config;
@@ -81,11 +82,11 @@ int main(int argc, char **argv) {
 		return 1;	// if there has been an error, don't even bother to continue	
 	}
 
-	mouse.scroll = glfwGetMouseWheel(); // Set the scroll value to the current mousewheel position
+	mouse.scroll = 0;
 	window.ratio = (float)window.height / (float)window.width;
 
 	// Set the input callback function pointers for advinput
-	initAdvInput();
+	initAdvInput(window.handle);
 
 	return mainLoop();	// Call the main loop and return it's return code when quitting
 };
@@ -131,7 +132,7 @@ int mainLoop() {
 		
 		// Update mouse coordinate variables
 		mouse.oldCoords[0] = mouse.coords[0]; mouse.oldCoords[1] = mouse.coords[1];
-		glfwGetMousePos(&mouse.coords[0], &mouse.coords[1]);
+		glfwGetCursorPos(window.handle, &mouse.coords[0], &mouse.coords[1]);
 		
 		
 		/*************************/
@@ -141,7 +142,7 @@ int mainLoop() {
 		zoomAccel *= zoomInertia;
 		
 		// Scroll to zoom
-		zoomAccel -= (float)(glfwGetMouseWheel() - mouse.scroll) * zoomFactor;
+		zoomAccel -= mouse.scroll * zoomFactor;
 		
 		// Double-Click to zoom
 		zoomAccel += (mouseDoubleClicked(GLFW_MOUSE_BUTTON_RIGHT) - mouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT)) * 0.1;
@@ -153,18 +154,27 @@ int mainLoop() {
 		zoomAccel = fabs(zoomAccel) < 0.01 ? 0.0 : zoomAccel;
 		
 		zoom += zoomAccel * fabs(zoom);
-		mouse.scroll = glfwGetMouseWheel();
+		mouse.scroll = mouseScroll();
 
 		
 		// Get the change in mouse coordinates, multiply by zoom, add to offset
-		if(glfwGetMouseButton(GLFW_MOUSE_BUTTON_LEFT)) {
-			offsetCoords[0] -= (double)(mouse.coords[0] - mouse.oldCoords[0]) / (double)((window.width + window.height) / 2.0) * zoom;
-			offsetCoords[1] += (double)(mouse.coords[1] - mouse.oldCoords[1]) / (double)((window.width + window.height) / 2.0) * zoom;
+		if(glfwGetMouseButton( window.handle, GLFW_MOUSE_BUTTON_LEFT)) {
+			offsetCoords[0] -= 	(mouse.coords[0] - mouse.oldCoords[0]) / 
+								(double)((window.width + window.height) / 2.0) *
+								zoom;
+			offsetCoords[1] += 	(mouse.coords[1] - mouse.oldCoords[1]) / 
+								(double)((window.width + window.height) / 2.0) *
+								zoom;
 			glUniform2d(gl_data.shader_uniform.offset, offsetCoords[0], offsetCoords[1]);	
 		}
 
-		if(glfwGetKey( GLFW_KEY_KP_ADD ) || glfwGetKey( GLFW_KEY_KP_SUBTRACT )) {
-			max_iterations += 1*( max_iterations > 0 ? (glfwGetKey( GLFW_KEY_KP_ADD ) - glfwGetKey( GLFW_KEY_KP_SUBTRACT )) : glfwGetKey( GLFW_KEY_KP_ADD ));
+		if(	glfwGetKey( window.handle, GLFW_KEY_KP_ADD ) || 
+			glfwGetKey( window.handle, GLFW_KEY_KP_SUBTRACT ))
+		{
+			max_iterations += 	1*( max_iterations > 0 ? 
+								(glfwGetKey( window.handle, GLFW_KEY_KP_ADD ) - 
+								glfwGetKey( window.handle, GLFW_KEY_KP_SUBTRACT ))
+								: glfwGetKey( window.handle, GLFW_KEY_KP_ADD ));
 			glUniform1i(gl_data.shader_uniform.iter, max_iterations);	
 			printf("Maximum iterations: %d\n", max_iterations);
 		}
@@ -175,6 +185,7 @@ int mainLoop() {
 		
 		// All drawing calls, here we'll spend most of the time
 		renderFunc();
+		glfwPollEvents();
 
 		++framesPassed;	// For FPS measurement
 
@@ -189,7 +200,9 @@ int mainLoop() {
 		}
 		
 		// Exit on Escape/Click on X
-		if(glfwGetKey( GLFW_KEY_ESC ) || !glfwGetWindowParam( GLFW_OPENED )) {
+		if(	glfwGetKey( window.handle, GLFW_KEY_ESCAPE ) || 
+			glfwWindowShouldClose(window.handle))
+		{
 			isRunning = false;
 		}
 
@@ -207,7 +220,7 @@ void renderFunc() { // Main rendering function
 	glDrawRangeElements(GL_TRIANGLE_FAN, 0, 3, 4, GL_UNSIGNED_SHORT, NULL);	
 	
 	// Swap Back- and Frontbuffer, also polls input
-	glfwSwapBuffers();
+	glfwSwapBuffers(window.handle);
 };
 
 int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsaa) {
@@ -215,18 +228,21 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 		fprintf(stderr, "Unable to initialize GLFW!\n");
 	}
 
-	int mode = fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW;
+	GLFWmonitor* monitor = fullscreen ? glfwGetPrimaryMonitor() : NULL;
 	
 	// Set some hints
-	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);	// We require OpenGL 4, which means older cards/Intel GPUs won't be able to run this.
-	glfwOpenWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
-	glfwOpenWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
-	glfwOpenWindowHint( GLFW_WINDOW_NO_RESIZE, GL_TRUE );		// Disallow window resizing (pain in the ass to handle)
+	glfwWindowHint( GLFW_CLIENT_API, GLFW_OPENGL_API );
+	glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );	// We require OpenGL 3.2, which means older cards/Intel GPUs won't be able to run this.
+	glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 2 );
+	glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
+	glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
+	glfwWindowHint( GLFW_RESIZABLE, GL_TRUE );		// Disallow window resizing (pain in the ass to handle)
 	
 	if(fsaa) {
-		glfwOpenWindowHint( GLFW_FSAA_SAMPLES, fsaa );
+		glfwWindowHint( GLFW_SAMPLES, fsaa );
 	}
 	
+	/*
 	if(!glfwOpenWindow(
 		gfx_w, gfx_h,	// Window Resolution
 		8, 8, 8, 8,	// R,G,B,A bits (= 32bit depth in total)
@@ -235,30 +251,33 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 	  ) {
 		fprintf(stderr, "Unable to open GLFW window.\n");
 		return 1;
+	}*/
+	window.handle = glfwCreateWindow(
+								gfx_w, gfx_h,
+								"Fractals are awesome!",
+								monitor,
+								NULL );
+	if( !(window.handle) ) {
+		fprintf(stderr, "Unable to open GLFW window.\n");
+		return 1;
 	}
+	glfwMakeContextCurrent(window.handle);	// Protip: don't forget this.
 	
 	// VSync off
 	if( disableVSync ) {
 		glfwSwapInterval(0);
+	} else {
+		glfwSwapInterval(1);
 	}
 	
-	// Window Title
-	glfwSetWindowTitle( "Fractals are awesome!" );
-
-	
-	// Experimental, because we're just that crazy!
-	glewExperimental = GL_TRUE;
-	if(glewInit() != GLEW_OK) {
-		fprintf(stderr, "GLEW failed to initialize.\n");
+	if(gl3wInit()) {
+		fprintf(stderr, "OpenGL failed to initialise.\n");
 		return 1;	
 	}
-	if (!GLEW_VERSION_4_0) {
-		fprintf(stderr, "OpenGL Version 4.0 is not available on your system.\n");
+	if (!gl3wIsSupported(3, 2)) {
+		fprintf(stderr, "OpenGL Version 3.2 is not available on your system.\n");
 		return 1;
 	}
-
-	// Discard the first GL error we get, which is caused by GLEW
-	checkForGLError("Non-fatal GLEW bug (fix it GLEW!)");
 
 	// Generate some ressources for OpenGL i.e. the quad and the 1D texture
 	generateQuad();
@@ -268,11 +287,14 @@ int initGraphics(int gfx_w, int gfx_h, int fullscreen, int disableVSync, int fsa
 	
 	// Init shader objects & load shaders
 	initShader();
+	//loadShader(gl_data.frag_shader, "shader/fragtests.txt");
 	loadShader(gl_data.frag_shader, "shader/mandelbrot_unrolled.glsl");
 	loadShader(gl_data.vert_shader, "shader/vertexshader.glsl");
 	
 	// Compile, link and error-check them
-	if(compileShader(gl_data.vert_shader, gl_data.frag_shader, gl_data.prog_object) == 1) {
+	if(buildShader(gl_data.vert_shader, gl_data.frag_shader, 
+		gl_data.prog_object) == 1)
+	{
 		return 1;	
 	}
 	

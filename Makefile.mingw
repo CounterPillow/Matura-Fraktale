@@ -1,0 +1,26 @@
+SRCF = $(wildcard *.c)
+OBJF = $(addsuffix .o,$(basename $(SRCF)))
+
+CC = gcc
+
+INCLUDEDIRS = -Igl3w/include
+CFLAGS += -Wall $(INCLUDEDIRS) -DGLFW_DLL -O2 -march=native
+LDFLAGS += gl3w/gl3w.o -lglfw3 -lopengl32 -lm #-Wl,--subsystem,windows
+# subsystem,windows is to build it as "GUI app", throwing all stdout/stderr into a black hole.
+
+all: fractal
+
+fractal: $(OBJF) | gl3w
+	$(CC) -o $@ $^ $(LDFLAGS) 
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $^
+
+clean:
+	$(MAKE) -C gl3w clean
+	rm -f $(OBJF) fractal.exe
+
+gl3w: 
+	$(MAKE) -C gl3w
+
+.PHONY: clean all gl3w

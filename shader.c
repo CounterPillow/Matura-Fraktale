@@ -2,7 +2,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdio.h>
-#include <GL/glew.h>
+#include <GL/gl3w.h>
 #include "shader.h"
 int loadShader( unsigned int shader, const char * path ) {
 	// First, let's get the filesize
@@ -32,11 +32,26 @@ int loadShader( unsigned int shader, const char * path ) {
 	return 0;
 };
 
-// Fun fact: also links the shaders.
-int compileShader( unsigned int vs, unsigned int fs, unsigned int po ) {
-	glCompileShader(vs);
-	glCompileShader(fs);
+void compileShader( unsigned int shader ) {
+	int errorLength = 0;
+	int success;
+	glCompileShader(shader);
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+	if( !success ) {
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &errorLength);
+		if( errorLength > 1 ) {
+			char* errorMessage = malloc(errorLength);
+			glGetShaderInfoLog(shader, errorLength, NULL, errorMessage);
+			fprintf(stderr, "%s\n", errorMessage);
+			free(errorMessage);
+		}
+	}
+}
 
+int buildShader( unsigned int vs, unsigned int fs, unsigned int po ) {
+	compileShader(vs);
+	compileShader(fs);
+	
 	glAttachShader(po, vs);
 	glAttachShader(po, fs);
 	

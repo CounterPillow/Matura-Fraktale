@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <GL/glew.h>
+#include <GL/gl3w.h>
 #include "util.h"
 
 void parseArgs( int argc, char** argv, cliArgs *dest ) {

@@ -1,28 +1,25 @@
-SRCF = $(shell find -name '*.c')
+#SRCF = $(shell find -name '*.c')
+SRCF = $(wildcard *.c)
 OBJF = $(addsuffix .o,$(basename $(SRCF)))
 
 CC = gcc
-LD = ld
 
-# Adjust these as you need
-GLEW_PATH = "D:/glew/include"
-GLEW_LIB_PATH = "D:/glew/lib"
-
-# Don't 'adjust' these though...
-INCLUDEDIRS = -I$(GLEW_PATH)
-CFLAGS = -Wall $(INCLUDEDIRS) -DGLFW_DLL
-LDFLAGS = -L$(GLEW_LIB_PATH) -lglew32 -lglfwdll -lopengl32 #-Wl,--subsystem,windows
-# subsystem,windows is to build it as "GUI app", throwing all stdout/stderr into a black hole.
+CFLAGS += -Igl3w/include -Wall -O2 `pkg-config --cflags glfw3` -march=native
+LDFLAGS += gl3w/gl3w.o `pkg-config --libs glfw3` -lGL -lm -ldl
 
 all: fractal
 
-fractal: $(OBJF)
+fractal: $(OBJF) | gl3w
 	$(CC) -o $@ $^ $(LDFLAGS) 
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $^
 
 clean:
-	rm $(OBJF)
+	$(MAKE) -C gl3w clean
+	rm -f $(OBJF) fractal
 
-.PHONY: clean all
+gl3w: 
+	$(MAKE) -C gl3w
+
+.PHONY: clean all gl3w

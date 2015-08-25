@@ -1,4 +1,4 @@
-#version 400 core
+#version 150 core
 #extension GL_ARB_gpu_shader_fp64 : enable
 
 in vec2 txcoords;
