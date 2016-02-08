@@ -94,8 +94,10 @@ int main(int argc, char **argv) {
 int mainLoop() {
 	int isRunning = true;
 	int framesPassed = 0;
+	double frameDelta = 0;
 	glfwSetTime(0.0);
 	double frameTimer = glfwGetTime();
+	double lastFrame = glfwGetTime();
 
 	// Won't change this at runtime
 	glUseProgram(gl_data.prog_object);
@@ -120,7 +122,6 @@ int mainLoop() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_data.ibo);
 
 	while(isRunning) {
-		
 		// FPS (Frames-Per-Second) measurement
 		if(glfwGetTime() - frameTimer >= 1.0) {
 			if(config.showFPS) {
@@ -129,6 +130,8 @@ int mainLoop() {
 			frameTimer = glfwGetTime();
 			framesPassed = 0;
 		}
+		frameDelta = (glfwGetTime() - lastFrame) / 0.01666666;
+		lastFrame = glfwGetTime();
 		
 		// Update mouse coordinate variables
 		mouse.oldCoords[0] = mouse.coords[0]; mouse.oldCoords[1] = mouse.coords[1];
@@ -139,21 +142,24 @@ int mainLoop() {
 		/*** Zoom calculations ***/
 		/*************************/
 
-		zoomAccel *= zoomInertia;
+		fprintf(stderr, "%lf\n", max(zoomInertia + 0.15 - 0.15 * frameDelta, 0.25));
+		zoomAccel *= max(zoomInertia + 0.15 - 0.15 * frameDelta, 0.25);
 		
 		// Scroll to zoom
-		zoomAccel -= mouse.scroll * zoomFactor;
+		zoomAccel -= mouse.scroll * zoomFactor * frameDelta;
 		
 		// Double-Click to zoom
-		zoomAccel += (mouseDoubleClicked(GLFW_MOUSE_BUTTON_RIGHT) - mouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT)) * 0.1;
+		zoomAccel += (mouseDoubleClicked(GLFW_MOUSE_BUTTON_RIGHT) - mouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT)) * 0.1 * frameDelta;
 
 		// This line may need explanation
 		// it cuts off the zoomAccel value if it's too small to make a noticeable change within one frame
 		// and thus eliminates some weird "flickering"
 		// No precise math going on here.
-		zoomAccel = fabs(zoomAccel) < 0.01 ? 0.0 : zoomAccel;
+		zoomAccel = fabs(zoomAccel) < (0.01 * frameDelta) ? 0.0 : zoomAccel;
 		
 		zoom += zoomAccel * fabs(zoom);
+		//fprintf(stderr, "%lf\n", zoom);
+		fflush(stderr);
 		mouse.scroll = mouseScroll();
 
 		
