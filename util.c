@@ -76,12 +76,16 @@ void checkForGLError( const char* identifier ) {
 	switch(err) {
 		default:
 			errorName = "Shit if I knew.";
+			break;
 		case GL_INVALID_VALUE:
 			errorName = "GL_INVALID_VALUE";
+			break;
 		case GL_INVALID_ENUM:
 			errorName = "GL_INVALID_ENUM";
+			break;
 		case GL_INVALID_OPERATION:
 			errorName = "GL_INVALID_OPERATION";
+			break;
 	}
 	if(err) { fprintf(stderr, "%s: Encountered OpenGL error %d, also known as '%s'\n", identifier, err, errorName); }
 }
