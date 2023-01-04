@@ -143,14 +143,14 @@ int mainLoop() {
 		/*** Zoom calculations ***/
 		/*************************/
 
-		fprintf(stderr, "%lf\n", max(zoomInertia + 0.15 - 0.15 * frameDelta, 0.25));
+		//fprintf(stderr, "%lf\n", max(zoomInertia + 0.15 - 0.15 * frameDelta, 0.25));
 		zoomAccel *= max(zoomInertia + 0.15 - 0.15 * frameDelta, 0.25);
 		
 		// Scroll to zoom
 		zoomAccel -= mouse.scroll * zoomFactor * frameDelta;
 		
 		// Double-Click to zoom
-		zoomAccel += (mouseDoubleClicked(GLFW_MOUSE_BUTTON_RIGHT) - mouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT)) * 0.1 * frameDelta;
+		zoomAccel += (mouseDoubleClicked(GLFW_MOUSE_BUTTON_RIGHT) - mouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT)) * 0.1 * min(frameDelta, 9.9);
 
 		// This line may need explanation
 		// it cuts off the zoomAccel value if it's too small to make a noticeable change within one frame
@@ -159,8 +159,6 @@ int mainLoop() {
 		zoomAccel = fabs(zoomAccel) < (0.01 * frameDelta) ? 0.0 : zoomAccel;
 		
 		zoom += zoomAccel * fabs(zoom);
-		//fprintf(stderr, "%lf\n", zoom);
-		fflush(stderr);
 		mouse.scroll = mouseScroll();
 
 		
