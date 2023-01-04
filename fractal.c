@@ -98,6 +98,7 @@ int mainLoop() {
 	glfwSetTime(0.0);
 	double frameTimer = glfwGetTime();
 	double lastFrame = glfwGetTime();
+	int iterChange = 0;
 
 	// Won't change this at runtime
 	glUseProgram(gl_data.prog_object);
@@ -174,13 +175,13 @@ int mainLoop() {
 			glUniform2d(gl_data.shader_uniform.offset, offsetCoords[0], offsetCoords[1]);	
 		}
 
-		if(	glfwGetKey( window.handle, GLFW_KEY_KP_ADD ) || 
-			glfwGetKey( window.handle, GLFW_KEY_KP_SUBTRACT ))
-		{
-			max_iterations += 	1*( max_iterations > 0 ? 
-								(glfwGetKey( window.handle, GLFW_KEY_KP_ADD ) - 
-								glfwGetKey( window.handle, GLFW_KEY_KP_SUBTRACT ))
-								: glfwGetKey( window.handle, GLFW_KEY_KP_ADD ));
+		iterChange = (int) (glfwGetKey(window.handle, GLFW_KEY_KP_ADD) > 0) + (int) (glfwGetKey(window.handle, GLFW_KEY_UP) > 0) ;
+		iterChange -= (int) (glfwGetKey(window.handle, GLFW_KEY_KP_SUBTRACT) > 0) + (int) (glfwGetKey(window.handle, GLFW_KEY_DOWN) > 0) ;
+		if(iterChange != 0) {
+			max_iterations += (int) (max(frameDelta, 1.0) * iterChange);
+			if(max_iterations < 0) {
+				max_iterations = 0;
+			}
 			glUniform1i(gl_data.shader_uniform.iter, max_iterations);	
 			printf("Maximum iterations: %d\n", max_iterations);
 		}
